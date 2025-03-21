@@ -36,7 +36,7 @@ O sistema foi desenvolvido em **Python** utilizando bibliotecas como `pyautogui`
 
 ### Clone o Repositório
 ```bash
-git clone https://github.com/seu-usuario/KAutoHunt.git
+git clone https://github.com/Kriegerl1/KAutoHunt.git
 ```
 
 ### Navegue até a pasta raiz do projeto
