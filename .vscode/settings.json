@@ -1,0 +1,29 @@
+{
+    "chat.promptFiles": true,
+    "chat.promptFilesLocations": {
+        ".github/prompts": true,
+        "/Users/vscode/repos/prompts": true
+    },
+    "github.copilot.chat.codeGeneration.instructions": [
+        {
+            "file": ".vscode/rules.coding-guidelines.md"
+        },
+        {
+            "file": ".vscode.rule.coding-style.md"
+        }
+    ],
+    "github.copilot.chat.reviewSelection.enabled": true,
+    "github.copilot.chat.reviewSelection.instructions": [
+        {
+            "file": ".vscode/rules.coding-guidelines.md"
+        },
+        {
+            "file": ".vscode.rule.coding-style.md"
+        }
+    ],
+    "github.copilot.chat.testGeneration.instructions": [
+        {
+            "file": ".vscode/rules/testing-xunit.md"
+        },
+    ],
+}
