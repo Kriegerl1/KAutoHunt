@@ -1,3 +1,4 @@
+from collections import deque
 import os
 import cv2
 import numpy as np
@@ -9,45 +10,51 @@ import time
 from math import sqrt
 from keras.models import load_model
 from src.controller import Controller
+from src.inputs import AtivarThreadsDeCaça
 from Utils.adjustProcess import AjustadorDeArea
 
 CT = Controller()
-AA = AjustadorDeArea(f"{set.Mob}")
+# AA = AjustadorDeArea(f"{set.Mob}")
 
 
 class VerificadorTela:
     def __init__(self):
         """Inicializa o VerificadorTela."""
+        self.SqmsIgnorados = deque(maxlen=5)
 
         self.model = load_model(set.Model, compile=False)
         self.data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
-        classes_path = os.path.join(os.path.dirname(__file__), "..", set.Mob)
+        CaminhoParaArquivoNomeMobs = os.path.join(
+            os.path.dirname(__file__), "..", set.Mob
+        )
 
-        if not os.path.exists(classes_path):
-            raise FileNotFoundError(f"Arquivo {classes_path} não encontrado.")
+        if not os.path.exists(CaminhoParaArquivoNomeMobs):
+            raise FileNotFoundError(
+                f"Arquivo {CaminhoParaArquivoNomeMobs} não encontrado."
+            )
 
-        with open(classes_path, "r", encoding="utf-8") as file:
+        with open(CaminhoParaArquivoNomeMobs, "r", encoding="utf-8") as file:
             self.classes = [line.strip().split(" ", 1)[1] for line in file]
 
-        self.frame_anterior = None
-        self.threshold_diferenca = 15_000
+        self.FrameAnterior = None
+        self.threshold_diferenca = 5_000
 
     def CompararFrames(self, frame_atual):
         """ "Compara o frame atual com o anterior para verificar mudanças significativas."""
-        if self.frame_anterior is None:
-            self.frame_anterior = frame_atual
+        if self.FrameAnterior is None:
+            self.FrameAnterior = frame_atual
             return True
 
-        cinza_anterior = cv2.resize(self.frame_anterior, (0, 0), fx=0.3, fy=0.3)
-        cinza_atual = cv2.resize(frame_atual, (0, 0), fx=0.3, fy=0.3)
+        FrameCinzaAnterior = cv2.resize(self.FrameAnterior, (0, 0), fx=0.3, fy=0.3)
+        FrameCinzaAtual = cv2.resize(frame_atual, (0, 0), fx=0.3, fy=0.3)
 
-        diferenca = cv2.absdiff(cinza_anterior, cinza_atual)
-        soma_diferenca = np.sum(diferenca)
+        Diferenca = cv2.absdiff(FrameCinzaAnterior, FrameCinzaAtual)
+        SomaDaDiferenca = np.sum(Diferenca)
 
-        self.frame_anterior = frame_atual
+        self.FrameAnterior = frame_atual
 
-        return soma_diferenca > self.threshold_diferenca
+        return SomaDaDiferenca > self.threshold_diferenca
 
     def CapturarTela(self):
         """Captura apenas a área de interesse do jogo."""
@@ -87,20 +94,6 @@ class VerificadorTela:
 
         return captura
 
-    """Define a área útil para detecção de mobs
-        def detectar_area_util(self, captura):
-
-        altura, largura, _ = captura.shape
-
-        MargemHorizontal, MargemVertical = 150, 80  # Ajuste conforme necessário
-        return (
-            MargemHorizontal,
-            MargemVertical,
-            largura - MargemHorizontal,
-            altura - MargemVertical,
-        )
-        """
-
     def IgnorarPersonagemCentral(self, captura):
         """Define a área onde o personagem está localizado para ignorá-lo na detecção."""
         altura, largura, _ = captura.shape
@@ -110,30 +103,6 @@ class VerificadorTela:
         Raio = 75
 
         return DivisaoHorizontal, DivisaoVertical, Raio
-
-    """Ignora o cursor do mouse na detecção.
-    def IgnorarPonteiroMouse(self, captura):
-        mouse_x, mouse_y = pyautogui.position()
-        # Definição do ponteiro em formato de triângulo
-        tamanho = 29  # Tamanho do ponteiro
-        ponteiro = np.array(
-            [
-                [
-                    (mouse_x, mouse_y),
-                    (mouse_x + tamanho, mouse_y + tamanho // 2),
-                    (mouse_x, mouse_y + tamanho),
-                ]
-            ],
-            dtype=np.int32,
-        )
-
-        # Desenha o contorno e preenche o ponteiro
-        cv2.polylines(
-            captura, [ponteiro], isClosed=True, color=(43, 33, 33), thickness=2
-        )
-        cv2.fillPoly(captura, [ponteiro], color=(43, 33, 33))
-        return captura
-    """
 
     def VerificarCorrespondeciaDeMob(self, sprite):
         """Classifica o mob detectado usando o modelo treinado."""
@@ -176,80 +145,72 @@ class VerificadorTela:
         return False  # Nenhum obstáculo encontrado
 
     def EncontrarContornosValidos(self, captura_preprocessada):
-        contours, _ = cv2.findContours(
+        Contornos, _ = cv2.findContours(
             captura_preprocessada, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
         )
-        contornos_validos = [c for c in contours if 400 < cv2.contourArea(c) < 3000]
-        return contornos_validos
+        ContornosValidos = [c for c in Contornos if 400 < cv2.contourArea(c) < 3000]
+        return ContornosValidos
 
     def CalcularCentroDoPersonagem(self, captura):
         return (captura.shape[1] // 2, captura.shape[0] // 2)
 
     def ConfigurarCaptura(self):
-        captura, Esquerda, Topo, Direita, Baixo = self.CapturarTela()
-        captura_preprocessada = self.PreProcessar(captura)
-        PersonagemX, PersonagemY = self.CalcularCentroDoPersonagem(captura)
-        contornos_validos = self.EncontrarContornosValidos(captura_preprocessada)
+        Captura, Esquerda, Topo, Direita, Baixo = self.CapturarTela()
+        CapturaProcessada = self.PreProcessar(Captura)
+        PersonagemX, PersonagemY = self.CalcularCentroDoPersonagem(Captura)
+        ContornosValidos = self.EncontrarContornosValidos(CapturaProcessada)
 
         return (
-            captura,
+            Captura,
             Esquerda,
             Topo,
             Direita,
             Baixo,
             PersonagemX,
             PersonagemY,
-            contornos_validos,
+            ContornosValidos,
         )
 
     def ModoDebug(self):
         """Exibe visualmente os contornos dos mobs enquanto MODO DEBUG estiver ativo."""
-        janela_aberta = False
+        JanelaDeDebug = False
 
         while True:
             if set.Debug:
                 (
-                    captura,
+                    Captura,
                     Esquerda,
                     Topo,
                     Direita,
                     Baixo,
                     PersonagemX,
                     PersonagemY,
-                    contornos_validos,
+                    ContonosValidos,
                 ) = self.ConfigurarCaptura()
 
                 DivisaoHorizontal, DivisaoVertical, Raio = (
-                    self.IgnorarPersonagemCentral(captura)
+                    self.IgnorarPersonagemCentral(Captura)
                 )
 
-                # cv2.circle(
-                #     captura,
-                #     (PersonagemX, PersonagemY),
-                #     Raio,
-                #     (43, 33, 33),
-                #     -1,
-                # )
+                cv2.circle(
+                    Captura,
+                    (PersonagemX, PersonagemY),
+                    Raio,
+                    (43, 33, 33),
+                    -1,
+                )
 
-                alterado = False  # flag para salvar apenas se tiver novos dados
-
-                for contorno in contornos_validos:
-                    ctn = cv2.contourArea(contorno)
+                for Contorno in ContonosValidos:
+                    ctn = cv2.contourArea(Contorno)
                     if not (290 < ctn < 8000):
                         continue
 
-                    x, y, w, h, centro_x, centro_y, NomeDoMob, Paridade = (
-                        self.DefinirCoordenadas(captura, contorno)
+                    x, y, w, h, MobX, MobY, NomeDoMob, Paridade = (
+                        self.DefinirCoordenadas(Captura, Contorno)
                     )
 
                     if Paridade < 0.8:
                         continue
-
-                    AA.CapturarAreaDoMob(
-                        NomeDoMob, ctn
-                    )  # <-- Descomentar para adicionar área ao arquivo adjust.txt
-
-                    alterado = True
 
                     if Esquerda <= x <= Direita and Topo <= y <= Baixo:
                         if (
@@ -261,24 +222,24 @@ class VerificadorTela:
                         ):
                             continue
 
-                    visivel = self.VerificarVisibilidadeDoAlvo(
-                        captura,
+                    Visivel = self.VerificarVisibilidadeDoAlvo(
+                        Captura,
                         (PersonagemX, PersonagemY + 70),
-                        (centro_x, centro_y + 30),
+                        (MobX, MobY + 30),
                     )
 
-                    cor = (255, 0, 0) if visivel else (0, 255, 0)
+                    cor = (255, 0, 0) if Visivel else (0, 255, 0)
 
-                    cv2.rectangle(captura, (x, y), (x + w, y + h), cor, 2)
+                    cv2.rectangle(Captura, (x, y), (x + w, y + h), cor, 2)
                     cv2.line(
-                        captura,
+                        Captura,
                         (PersonagemX, PersonagemY + 70),
-                        (centro_x, centro_y + 30),
+                        (MobX, MobX + 30),
                         cor,
                         1,
                     )
                     cv2.putText(
-                        captura,
+                        Captura,
                         f"{NomeDoMob}: {Paridade*100:.2f}% AREA:{ctn:.2f}",
                         (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX,
@@ -287,87 +248,155 @@ class VerificadorTela:
                         1,
                     )
 
-                if alterado:
-                    AA.Salvar()  # <-- Descomentar para salvar o arquivo adjust.txt
-
-                cv2.imshow("Pre-Visualizacao", captura)
-                janela_aberta = True
+                cv2.imshow("Pre-Visualizacao", Captura)
+                JanelaDeDebug = True
 
                 if cv2.waitKey(1) & 0xFF == 27:
                     set.Debug = False
 
             else:
-                if janela_aberta:
+                if JanelaDeDebug:
                     cv2.destroyAllWindows()
-                    janela_aberta = False
+                    JanelaDeDebug = False
 
             time.sleep(0.1)
 
     def DefinirCoordenadas(self, captura, contorno):
         (x, y, w, h) = cv2.boundingRect(contorno)
 
-        centro_x, centro_y = x + w // 2, y + h // 2
+        MobX, MobY = x + w // 2, y + h // 2
 
         SelecaoDeAlvo = captura[y : y + h, x : x + w]
 
         NomeDoMob, Paridade = self.VerificarCorrespondeciaDeMob(SelecaoDeAlvo)
 
-        return x, y, w, h, centro_x, centro_y, NomeDoMob, Paridade
+        return x, y, w, h, MobX, MobY, NomeDoMob, Paridade
 
-    def Verificar(self):
-        """Loop principal do bot."""
-        CT.AjusteInicial()
+    def PodeAtacarCoordenada(self, x, y, tolerancia=40, tempo_limite=5.0):
+        Agora = time.perf_counter()
+        NovasCoordenadas = []
 
-        while True:
-            (
-                captura,
-                Esquerda,
-                Topo,
-                Direita,
-                Baixo,
-                PersonagemX,
-                PersonagemY,
-                contornos_validos,
-            ) = self.ConfigurarCaptura()
+        for cx, cy, t in self.SqmsIgnorados:
+            if (cx, cy) == self.CentroDaTela:
+                NovasCoordenadas.append((cx, cy, t))
+                continue
+            if Agora - t < tempo_limite:
+                NovasCoordenadas.append((cx, cy, t))
+                if abs(cx - x) < tolerancia and abs(cy - y) < tolerancia:
+                    return False
 
-            if set.ProcurandoAlvo:
+        self.SqmsIgnorados = NovasCoordenadas
+        self.SqmsIgnorados.append((x, y, Agora))
+        print(
+            f"[INFO] Coordenada ({x}, {y}) registrada. Total: {len(self.SqmsIgnorados)}"
+        )
+        return True
 
-                for contorno in contornos_validos:
-                    ctn = cv2.contourArea(contorno)
-                    if not (290 < ctn < 8000):
-                        continue
+    def ReprocessarTela(verificador):
+        Inicio = time.time()
+        MobEncontrado = False
 
-                    x, y, w, h, centro_x, centro_y, NomeDoMob, Paridade = (
-                        self.DefinirCoordenadas(captura, contorno)
+        while time.time() - Inicio < 0.5:
+            Captura, *_ = verificador.ConfigurarCaptura()
+
+            if verificador.CompararFrames(Captura):
+                Contornos = verificador.EncontrarContornosValidos(
+                    verificador.PreProcessar(Captura)
+                )
+
+                for Contorno in Contornos:
+                    x, y, w, h, _, _, Nome, Paridade = verificador.DefinirCoordenadas(
+                        Captura, Contorno
                     )
 
-                    MediaArea = AA.CalcularMediaArea(NomeDoMob)
+                    if Nome.lower() == "vento da colina" and Paridade > 0.85:
+                        MobEncontrado = True
+                        break
 
-                    try:
-                        MediaArea = int(MediaArea)
-                        margem = MediaArea * 0.4
-                        if not (MediaArea - margem < ctn < MediaArea + margem):
-                            continue
-                    except (TypeError, ValueError):
-                        pass  # ignora se não for número válido
+            if MobEncontrado:
+                return False
 
-                    if (
-                        Paridade > 0.9
-                        and NomeDoMob == "Les"
-                        and not self.VerificarVisibilidadeDoAlvo(
-                            captura,
-                            (PersonagemX, PersonagemY + 70),
-                            (centro_x, centro_y + 30),
-                        )
-                    ):
-                        CT.MoverParaAlvo(centro_x + Esquerda, centro_y + Topo)
-                    elif (
-                        Paridade > 0.9
-                        and NomeDoMob != "Les"
-                        and not self.VerificarVisibilidadeDoAlvo(
-                            captura,
-                            (PersonagemX, PersonagemY + 70),
-                            (centro_x, centro_y + 30),
-                        )
-                    ):
-                        CT.AsaDeMosca()
+        if hasattr(verificador, "CentroDaTela"):
+            verificador.SqmsIgnorados = [
+                verificador.CentroDaTela + (time.perf_counter(),)
+            ]
+        else:
+            verificador.SqmsIgnorados = []
+
+        CT.AsaDeMosca()
+        return True
+
+    def Verificar(self):
+        while AtivarThreadsDeCaça.is_set():
+            (
+                Captura,
+                Esquerda,
+                Topo,
+                _,
+                _,
+                PersonagemX,
+                PersonagemY,
+                ContornosValidos,
+            ) = self.ConfigurarCaptura()
+
+            self.CentroDaTela = (PersonagemX, PersonagemY)
+            Inicio = time.perf_counter()
+
+            MobProcessado = False
+            SemAlvos = True
+
+            for Contorno in ContornosValidos:
+                area = cv2.contourArea(Contorno)
+                if not (600 < area < 3000):
+                    continue
+
+                x, y, w, h, MobX, MobY, NomeDoMob, Paridade = self.DefinirCoordenadas(
+                    Captura, Contorno
+                )
+
+                MobProcessado = True
+
+                distancia = (
+                    (MobX - PersonagemX) ** 2 + (MobY - (PersonagemY + 20)) ** 2
+                ) ** 0.5
+                if distancia < 50:
+                    continue
+
+                if not self.PodeAtacarCoordenada(MobX, MobY):
+                    continue
+
+                if (
+                    NomeDoMob == "Vento da Colina"
+                    and Paridade > 0.85
+                    and not self.VerificarVisibilidadeDoAlvo(
+                        Captura,
+                        (PersonagemX, PersonagemY + 70),
+                        (MobX, MobY + 30),
+                    )
+                ):
+                    CT.MoverParaAlvo(MobX + Esquerda, MobY + Topo)
+                    CT.RajadaDeFlechas()
+
+                    CT.Atacar()
+                    self.SqmsIgnorados.append((MobX, MobY, Inicio))
+                    self.ReprocessarTela()
+                    return
+
+                if self.VerificarVisibilidadeDoAlvo(
+                    Captura,
+                    (PersonagemX, PersonagemY + 70),
+                    (MobX, MobY + 30),
+                ):
+                    SemAlvos = False
+                    CT.MoverParaAlvo(MobX + Esquerda, MobY + Topo)
+                    CT.RajadaDeFlechas()
+                    time.sleep(0.1)
+                    CT.Atacar()
+                    self.SqmsIgnorados.append((MobX, MobY, Inicio))
+                    break
+
+            if MobProcessado and SemAlvos:
+                CT.AsaDeMosca()
+                return
+
+            time.sleep(0.01)
