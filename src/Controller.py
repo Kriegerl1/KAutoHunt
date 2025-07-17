@@ -1,8 +1,6 @@
 import time
 import ctypes
 import keyboard
-import win32api
-from config.settings import server
 
 
 """"Constantes para eventos de mouse e teclado."""

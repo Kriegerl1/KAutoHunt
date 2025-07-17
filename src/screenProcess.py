@@ -1,32 +1,33 @@
-from collections import deque
 import os
-import cv2
-import numpy as np
-import pygetwindow as gw
-import pyautogui
 import mss
-import config.settings as set
+import cv2
 import time
+import numpy as np
 from math import sqrt
+from collections import deque
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from keras.models import load_model
+
 from src.controller import Controller
+
 from src.inputs import AtivarThreadsDeCaça
-from Utils.adjustProcess import AjustadorDeArea
+from config.settings import settings
+
 
 CT = Controller()
-# AA = AjustadorDeArea(f"{set.Mob}")
 
 
 class VerificadorTela:
+
     def __init__(self):
         """Inicializa o VerificadorTela."""
-        self.SqmsIgnorados = deque(maxlen=5)
-
-        self.model = load_model(set.Model, compile=False)
+        self.SqmsIgnorados = deque(maxlen=10)
+        self.model = load_model(settings.Model, compile=False)
         self.data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
         CaminhoParaArquivoNomeMobs = os.path.join(
-            os.path.dirname(__file__), "..", set.Mob
+            os.path.dirname(__file__), "..", settings.ArquivoDeMobs
         )
 
         if not os.path.exists(CaminhoParaArquivoNomeMobs):
@@ -176,7 +177,7 @@ class VerificadorTela:
         JanelaDeDebug = False
 
         while True:
-            if set.Debug:
+            if settings.Debug:
                 (
                     Captura,
                     Esquerda,
@@ -240,7 +241,7 @@ class VerificadorTela:
                     )
                     cv2.putText(
                         Captura,
-                        f"{NomeDoMob}: {Paridade*100:.2f}% AREA:{ctn:.2f}",
+                        f"Nome: {NomeDoMob} | Paridade: {Paridade*100:.2f}%",
                         (x, y - 10),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.8,
@@ -309,7 +310,7 @@ class VerificadorTela:
                         Captura, Contorno
                     )
 
-                    if Nome.lower() == "vento da colina" and Paridade > 0.85:
+                    if Nome.lower() == settings.ArquivoDeMobs and Paridade > 0.85:
                         MobEncontrado = True
                         break
 
@@ -366,7 +367,7 @@ class VerificadorTela:
                     continue
 
                 if (
-                    NomeDoMob == "Vento da Colina"
+                    NomeDoMob == settings.MobsAlvo
                     and Paridade > 0.85
                     and not self.VerificarVisibilidadeDoAlvo(
                         Captura,

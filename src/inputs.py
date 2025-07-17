@@ -1,8 +1,10 @@
-import keyboard
 import time
-import config.settings as set
-from src.controller import Controller
+import keyboard
 import threading
+
+from src.controller import Controller
+
+from config.settings import settings
 
 CT = Controller()
 
@@ -12,7 +14,7 @@ AtivarDebug = threading.Event()
 
 def mostrar_status():
     print(
-        f"[STATUS] Caça: {'ON' if set.ProcurandoAlvo else 'OFF'} | Debug: {'ON' if set.Debug else 'OFF'}"
+        f"[STATUS] Caça: {'ON' if settings.ProcurandoAlvo else 'OFF'} | Debug: {'ON' if settings.Debug else 'OFF'}"
     )
 
 
@@ -32,12 +34,10 @@ class Inputs:
 
     def toggle_caca(self):
         if AtivarThreadsDeCaça.is_set():
-            # Desativa caça
             AtivarThreadsDeCaça.clear()
-            set.ProcurandoAlvo = False
+            settings.ProcurandoAlvo = False
             print("[THREAD] Caça desativada.")
         else:
-            # Garante que não há thread anterior rodando
             if self.thread_caca is not None and self.thread_caca.is_alive():
                 print("[INFO] Aguardando thread anterior encerrar...")
                 AtivarThreadsDeCaça.clear()
@@ -45,7 +45,7 @@ class Inputs:
 
             # Ativa caça
             AtivarThreadsDeCaça.set()
-            set.ProcurandoAlvo = True
+            settings.ProcurandoAlvo = True
             CT.AjusteInicial()
 
             print("[THREAD] Caça ativada.")
@@ -57,14 +57,12 @@ class Inputs:
 
     def toggle_debug(self):
         if AtivarDebug.is_set():
-            # Desativa debug
             AtivarDebug.clear()
-            set.Debug = False
+            settings.Debug = False
             print("[THREAD] Debug desativado.")
         else:
-            # Ativa debug
             AtivarDebug.set()
-            set.Debug = True
+            settings.Debug = True
             print("[THREAD] Debug ativado.")
 
             if self.thread_debug is None or not self.thread_debug.is_alive():
@@ -106,7 +104,7 @@ class Inputs:
         self.executando_debug = False
 
     def listen(self):
-        print("Aguardando comandos (END para caça, HOME para debug)...")
+        print("Aguardando comandos ([END] para iniciar caça, [HOME] para iniciar debug)...")
         try:
             while True:
                 time.sleep(1)

@@ -4,6 +4,21 @@ import zipfile
 
 class MapLoader:
     @staticmethod
+    def ListarMapas():
+        Mapas = []
+        try:
+            for mapa in os.listdir(
+                os.path.join(os.path.dirname(__file__), "..", "assets", "Zimap")
+            ):
+                if mapa.endswith(".zip"):
+                    Mapas.append(mapa)
+        except Exception as e:
+            print(f"Erro ao listar mapas: {e}")
+            return []
+
+        return Mapas
+
+    @staticmethod
     def CarregarMapa(nome_zip):
         nome_base = os.path.splitext(nome_zip)[0]
 
