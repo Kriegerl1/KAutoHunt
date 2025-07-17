@@ -1,0 +1,5 @@
+{
+  "title": "KAutoHunt Script",
+  "description": "Sistema em Python que captura a tela em tempo real, detecta e classifica objetos utilizando OpenCV e Keras, calcula posicionamento e executa ações automáticas como mira e movimentação. Aplicável para automação de tarefas, reconhecimento de sprites e interações inteligentes em aplicações visuais.",
+  "gif": "https://raw.githubusercontent.com/LeoRodrigues133/KAutoHunt/master/assets/img/apresentacao.gif"
+}
